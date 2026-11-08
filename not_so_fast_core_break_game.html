@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>NOT SO FAST - CORE / BREAK</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #05070c;
+            color: #d1d5db;
+            touch-action: none;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .font-mono-custom {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+        .glow-circle {
+            filter: drop-shadow(0 0 10px rgba(100, 180, 240, 0.3));
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between items-center bg-[#05070c] relative">
+
+    <!-- Header UI (Matches Screenshot Header) -->
+    <header class="w-full max-w-2xl px-4 pt-4 pb-1 flex flex-col items-center justify-center z-10 pointer-events-none">
+        <h1 class="text-2xl sm:text-3xl font-bold tracking-[0.25em] text-gray-100 text-center font-mono-custom">
+            NOT SO FAST
+        </h1>
+        <div class="text-[11px] sm:text-xs tracking-[0.2em] text-slate-400 font-mono-custom mt-1 flex items-center space-x-2">
+            <span>CORE / BREAK</span>
+            <span>-</span>
+            <span class="text-cyan-400 font-bold">STAGE 12</span>
+        </div>
+
+        <!-- Dynamic Counter & Balls Row -->
+        <div class="w-full flex justify-between items-center text-xs font-mono-custom mt-3 px-2 text-slate-400">
+            <div>
+                CLEARED <span id="clearedCount" class="text-gray-100 font-bold">0000</span> / <span id="totalBricksCount" class="text-slate-400">3379</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button id="soundBtn" class="pointer-events-auto px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300 hover:text-cyan-400 text-xs">
+                    <i id="soundIcon" class="fa-solid fa-volume-high"></i>
+                </button>
+                <button id="pauseBtn" class="pointer-events-auto px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300 hover:text-cyan-400 text-xs">
+                    <i id="pauseIcon" class="fa-solid fa-pause"></i>
+                </button>
+                <span class="ml-2">BALLS <span id="ballsCount" class="text-gray-100 font-bold">001</span></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Canvas Container -->
+    <main id="canvasContainer" class="relative flex-1 w-full max-w-2xl flex items-center justify-center overflow-hidden">
+        <canvas id="gameCanvas" class="w-full h-full"></canvas>
+
+        <!-- Start Overlay -->
+        <div id="startOverlay" class="absolute inset-0 bg-[#05070c]/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-20">
+            <div class="w-16 h-16 mb-4 rounded-full border border-cyan-500/40 bg-cyan-500/10 flex items-center justify-center text-cyan-400 text-2xl glow-circle">
+                <i class="fa-solid fa-circle-notch animate-spin"></i>
+            </div>
+            <h2 class="font-mono-custom text-2xl sm:text-3xl font-extrabold text-white tracking-widest mb-2">STAGE 12: CORE / BREAK</h2>
+            <p class="text-slate-400 text-xs sm:text-sm max-w-xs mb-6 leading-relaxed">
+                Clear all 3,379 micro-bricks inside the outer circle. Keep the ball bouncing inside the wafer ring!
+            </p>
+
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 max-w-xs w-full text-xs text-slate-400 font-mono-custom mb-6 space-y-2 text-left">
+                <div class="flex justify-between"><span>MOUSE / TOUCH:</span> <span class="text-cyan-400">Move Paddle</span></div>
+                <div class="flex justify-between"><span>ARROW / A-D:</span> <span class="text-cyan-400">Steer Paddle</span></div>
+                <div class="flex justify-between"><span>CLICK / SPACE:</span> <span class="text-pink-400">Launch / Fire Laser</span></div>
+            </div>
+
+            <button id="startBtn" class="px-8 py-3 rounded-full font-mono-custom font-bold text-sm bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition transform active:scale-95 shadow-lg shadow-cyan-500/20">
+                START ATTEMPT
+            </button>
+        </div>
+
+        <!-- Pause Overlay -->
+        <div id="pauseOverlay" class="hidden absolute inset-0 bg-[#05070c]/85 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-20">
+            <h2 class="font-mono-custom text-3xl font-extrabold text-cyan-400 tracking-wider mb-4">PAUSED</h2>
+            <div class="flex flex-col space-y-3 w-44">
+                <button id="resumeBtn" class="py-2.5 rounded-lg font-mono-custom text-xs font-bold bg-cyan-500 text-slate-950 hover:bg-cyan-400">RESUME</button>
+                <button id="restartBtn" class="py-2.5 rounded-lg font-mono-custom text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300 hover:bg-slate-800">RESTART</button>
+            </div>
+        </div>
+
+        <!-- Game Over / Level Clear Overlay -->
+        <div id="msgOverlay" class="hidden absolute inset-0 bg-[#05070c]/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-20">
+            <h2 id="msgTitle" class="font-mono-custom text-3xl font-black text-rose-500 tracking-widest mb-2">BALL LOST</h2>
+            <p id="msgSub" class="text-slate-400 text-xs font-mono-custom mb-6">Attempt failed. Try again!</p>
+            <button id="msgActionBtn" class="px-8 py-3 rounded-full font-mono-custom font-bold text-xs bg-rose-500 text-slate-950 hover:bg-rose-400 transition">
+                TRY AGAIN
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer UI (Matches Screenshot Footer) -->
+    <footer class="w-full max-w-2xl px-6 pb-4 pt-1 flex justify-between items-center text-xs font-mono-custom text-slate-500 z-10 pointer-events-none">
+        <div>
+            ATTEMPT <span id="attemptDisplay" class="text-slate-300">01</span>
+        </div>
+        <div id="powerupDisplay" class="text-amber-400 font-bold tracking-wider">
+            NO POWER-UP
+        </div>
+    </footer>
+
+    <!-- Game Script -->
+    <script>
+        // --- Sound Generator (Web Audio API) ---
+        class WebAudioSynth {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+            playTone(freq, type = 'sine', duration = 0.08, vol = 0.1) {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch(e){}
+            }
+            bounce() { this.playTone(320, 'sine', 0.05, 0.08); }
+            paddleHit() { this.playTone(440, 'triangle', 0.07, 0.12); }
+            brickBreak() { this.playTone(600 + Math.random() * 300, 'square', 0.04, 0.05); }
+            powerup() { 
+                this.playTone(523, 'sine', 0.1, 0.1);
+                setTimeout(() => this.playTone(659, 'sine', 0.15, 0.1), 80);
+            }
+            laser() { this.playTone(880, 'sawtooth', 0.06, 0.08); }
+            fail() { this.playTone(150, 'sawtooth', 0.3, 0.15); }
+        }
+
+        const audio = new WebAudioSynth();
+
+        // --- Canvas & Logic Variables ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI References
+        const clearedCountEl = document.getElementById('clearedCount');
+        const totalBricksCountEl = document.getElementById('totalBricksCount');
+        const ballsCountEl = document.getElementById('ballsCount');
+        const attemptDisplayEl = document.getElementById('attemptDisplay');
+        const powerupDisplayEl = document.getElementById('powerupDisplay');
+        const startOverlay = document.getElementById('startOverlay');
+        const pauseOverlay = document.getElementById('pauseOverlay');
+        const msgOverlay = document.getElementById('msgOverlay');
+        const msgTitle = document.getElementById('msgTitle');
+        const msgSub = document.getElementById('msgSub');
+        const msgActionBtn = document.getElementById('msgActionBtn');
+        const soundBtn = document.getElementById('soundBtn');
+        const soundIcon = document.getElementById('soundIcon');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const pauseIcon = document.getElementById('pauseIcon');
+
+        // State Machine
+        let gameState = 'MENU'; // MENU, PLAYING, PAUSED, GAMEOVER
+        let attempt = 1;
+        let totalBricks = 0;
+        let clearedBricks = 0;
+        let activePowerup = 'NO POWER-UP';
+        let powerupTimer = 0;
+
+        // Coordinates & Scale
+        let width = 0;
+        let height = 0;
+        let ringCenter = { x: 0, y: 0 };
+        let ringRadius = 0;
+        let gateWidth = 32;
+        let gateAngleGap = 0; // Angle gap at bottom of circle
+
+        // Objects
+        let bricks = [];
+        let balls = [];
+        let particles = [];
+        let powerItems = [];
+        let lasers = [];
+
+        // Bottom Paddle (User controlled)
+        const paddle = {
+            x: 0,
+            y: 0,
+            w: 80,
+            h: 12,
+            targetX: 0,
+            speed: 12,
+            hasLaser: false
+        };
+
+        // Inner Shield Bar inside Wafer
+        const shieldBar = {
+            x: 0,
+            y: 0,
+            w: 120,
+            h: 8
+        };
+
+        // Controls
+        const keys = { left: false, right: false };
+
+        function resizeCanvas() {
+            const container = document.getElementById('canvasContainer');
+            width = container.clientWidth;
+            height = container.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+
+            ringCenter = { x: width / 2, y: height * 0.44 };
+            ringRadius = Math.min(width * 0.42, height * 0.36);
+            gateWidth = 36;
+            gateAngleGap = Math.asin((gateWidth / 2) / ringRadius);
+
+            paddle.y = height * 0.88;
+            if (paddle.x === 0) paddle.x = width / 2;
+
+            shieldBar.w = ringRadius * 0.65;
+            shieldBar.x = ringCenter.x - shieldBar.w / 2;
+            shieldBar.y = ringCenter.y + ringRadius * 0.62;
+        }
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            if (gameState === 'MENU' || bricks.length === 0) {
+                initBricks();
+            }
+        });
+
+        // --- Grid Generator (Matching Core Wafer Pattern) ---
+        function initBricks() {
+            bricks = [];
+            clearedBricks = 0;
+
+            const brickSize = 6; // Compact micro-die brick size
+            const gap = 1;
+            const step = brickSize + gap;
+
+            const minX = ringCenter.x - ringRadius + 12;
+            const maxX = ringCenter.x + ringRadius - 12;
+            const minY = ringCenter.y - ringRadius + 14;
+            const maxY = shieldBar.y - 12; // Flat cut at bottom above shield bar
+
+            for (let y = minY; y < maxY; y += step) {
+                for (let x = minX; x < maxX; x += step) {
+                    // Check if inside circle radius boundary
+                    const dx = x + brickSize/2 - ringCenter.x;
+                    const dy = y + brickSize/2 - ringCenter.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < ringRadius - 10) {
+                        // Calculate color gradient based on distance from center (orange/pink core)
+                        const normDist = dist / ringRadius;
+                        const r = Math.floor(235 - normDist * 40);
+                        const g = Math.floor(120 + normDist * 30);
+                        const b = Math.floor(100 + normDist * 40);
+
+                        bricks.push({
+                            x: x,
+                            y: y,
+                            w: brickSize,
+                            h: brickSize,
+                            color: `rgb(${r},${g},${b})`,
+                            alive: true
+                        });
+                    }
+                }
+            }
+
+            totalBricks = bricks.length;
+            totalBricksCountEl.textContent = totalBricks;
+            clearedCountEl.textContent = '0000';
+        }
+
+        // --- Ball Helper ---
+        function createBall(onPaddle = false) {
+            if (onPaddle) {
+                return {
+                    x: paddle.x,
+                    y: paddle.y - 10,
+                    vx: 0,
+                    vy: 0,
+                    radius: 5,
+                    attached: true
+                };
+            } else {
+                const angle = -Math.PI / 2 + (Math.random() * 0.6 - 0.3);
+                const speed = 6;
+                return {
+                    x: paddle.x,
+                    y: paddle.y - 12,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 5,
+                    attached: false
+                };
+            }
+        }
+
+        function launchBall() {
+            audio.init();
+            balls.forEach(b => {
+                if (b.attached) {
+                    b.attached = false;
+                    const speed = 6.5;
+                    const angle = -Math.PI / 2 + (Math.random() * 0.4 - 0.2);
+                    b.vx = Math.cos(angle) * speed;
+                    b.vy = Math.sin(angle) * speed;
+                }
+            });
+
+            if (paddle.hasLaser) {
+                fireLaser();
+            }
+        }
+
+        function fireLaser() {
+            audio.laser();
+            lasers.push({ x: paddle.x - paddle.w / 3, y: paddle.y - 8, vy: -12 });
+            lasers.push({ x: paddle.x + paddle.w / 3, y: paddle.y - 8, vy: -12 });
+        }
+
+        // --- Particles ---
+        function createSparks(x, y, color, count = 5) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const spd = Math.random() * 3 + 1;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * spd,
+                    vy: Math.sin(angle) * spd,
+                    color: color,
+                    alpha: 1,
+                    life: 0.04
+                });
+            }
+        }
+
+        // --- Power-up Drops ---
+        function spawnPowerup(x, y) {
+            if (Math.random() > 0.06) return;
+            const types = ['MULTI-BALL', 'WIDE PADDLE', 'LASER', 'SLOW-MO'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            powerItems.push({
+                x: x,
+                y: y,
+                vy: 2,
+                type: type
+            });
+        }
+
+        function applyPowerup(type) {
+            audio.powerup();
+            activePowerup = type;
+            powerupTimer = 600; // ~10 seconds
+            powerupDisplayEl.textContent = type;
+
+            if (type === 'MULTI-BALL') {
+                const count = balls.length;
+                for (let i = 0; i < count; i++) {
+                    const b = balls[i];
+                    if (!b.attached) {
+                        balls.push({ x: b.x, y: b.y, vx: -b.vx, vy: b.vy, radius: 5, attached: false });
+                        balls.push({ x: b.x, y: b.y, vx: b.vx * 1.2, vy: -b.vy, radius: 5, attached: false });
+                    }
+                }
+            } else if (type === 'WIDE PADDLE') {
+                paddle.w = 120;
+            } else if (type === 'LASER') {
+                paddle.hasLaser = true;
+            } else if (type === 'SLOW-MO') {
+                balls.forEach(b => {
+                    b.vx *= 0.7;
+                    b.vy *= 0.7;
+                });
+            }
+        }
+
+        function resetPowerups() {
+            activePowerup = 'NO POWER-UP';
+            powerupDisplayEl.textContent = activePowerup;
+            paddle.w = 80;
+            paddle.hasLaser = false;
+        }
+
+        // --- Input Events ---
+        window.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            paddle.targetX = e.clientX - rect.left;
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                const rect = canvas.getBoundingClientRect();
+                paddle.targetX = e.touches[0].clientX - rect.left;
+            }
+        }, { passive: true });
+
+        window.addEventListener('mousedown', () => {
+            if (gameState === 'PLAYING') launchBall();
+        });
+
+        window.addEventListener('touchstart', (e) => {
+            if (gameState === 'PLAYING') launchBall();
+        }, { passive: true });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+            if (e.code === 'Space') {
+                if (gameState === 'PLAYING') launchBall();
+            }
+            if (e.key === 'p' || e.key === 'P') togglePause();
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+        });
+
+        // --- Start & Reset Logic ---
+        function startNewGame() {
+            attempt = 1;
+            attemptDisplayEl.textContent = '01';
+            initBricks();
+            resetRound();
+            startOverlay.classList.add('hidden');
+            msgOverlay.classList.add('hidden');
+            pauseOverlay.classList.add('hidden');
+            gameState = 'PLAYING';
+        }
+
+        function resetRound() {
+            balls = [createBall(true)];
+            lasers = [];
+            powerItems = [];
+            resetPowerups();
+            ballsCountEl.textContent = '001';
+        }
+
+        function togglePause() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                pauseOverlay.classList.remove('hidden');
+                pauseIcon.className = 'fa-solid fa-play';
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                pauseOverlay.classList.add('hidden');
+                pauseIcon.className = 'fa-solid fa-pause';
+            }
+        }
+
+        // --- Game Update Loop ---
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            // Handle Paddle Movement
+            if (keys.left) paddle.targetX -= paddle.speed;
+            if (keys.right) paddle.targetX += paddle.speed;
+            paddle.targetX = Math.max(paddle.w / 2, Math.min(width - paddle.w / 2, paddle.targetX));
+            paddle.x += (paddle.targetX - paddle.x) * 0.3;
+
+            // Powerup Timer
+            if (powerupTimer > 0) {
+                powerupTimer--;
+                if (powerupTimer <= 0) resetPowerups();
+            }
+
+            // Update Balls
+            for (let i = balls.length - 1; i >= 0; i--) {
+                const b = balls[i];
+
+                if (b.attached) {
+                    b.x = paddle.x;
+                    b.y = paddle.y - 10;
+                    continue;
+                }
+
+                b.x += b.vx;
+                b.y += b.vy;
+
+                // 1. Outer Box Left/Right/Top Canvas Boundary
+                if (b.x - b.radius < 0) {
+                    b.x = b.radius;
+                    b.vx *= -1;
+                    audio.bounce();
+                }
+                if (b.x + b.radius > width) {
+                    b.x = width - b.radius;
+                    b.vx *= -1;
+                    audio.bounce();
+                }
+                if (b.y - b.radius < 0) {
+                    b.y = b.radius;
+                    b.vy *= -1;
+                    audio.bounce();
+                }
+
+                // 2. Main Outer Circle Boundary Collision
+                const dx = b.x - ringCenter.x;
+                const dy = b.y - ringCenter.y;
+                const distToCenter = Math.sqrt(dx * dx + dy * dy);
+
+                if (distToCenter + b.radius >= ringRadius) {
+                    const angle = Math.atan2(dy, dx);
+                    const bottomAngle = Math.PI / 2;
+
+                    // Check if ball hits the bottom opening gap of the circle ring
+                    const isAtGap = Math.abs(angle - bottomAngle) < gateAngleGap;
+
+                    if (!isAtGap) {
+                        // Rebound off inner/outer circular wall
+                        const nx = dx / distToCenter;
+                        const ny = dy / distToCenter;
+
+                        // Reflect velocity vector against normal
+                        const dot = b.vx * nx + b.vy * ny;
+                        b.vx = b.vx - 2 * dot * nx;
+                        b.vy = b.vy - 2 * dot * ny;
+
+                        // Reposition ball slightly inside
+                        b.x = ringCenter.x + nx * (ringRadius - b.radius - 1);
+                        b.y = ringCenter.y + ny * (ringRadius - b.radius - 1);
+                        audio.bounce();
+                        createSparks(b.x, b.y, '#38bdf8', 3);
+                    }
+                }
+
+                // 3. Inner Shield Bar Collision (Flat horizontal obstacle under core)
+                if (
+                    b.x > shieldBar.x &&
+                    b.x < shieldBar.x + shieldBar.w &&
+                    b.y + b.radius > shieldBar.y &&
+                    b.y - b.radius < shieldBar.y + shieldBar.h
+                ) {
+                    b.vy *= -1;
+                    audio.bounce();
+                }
+
+                // 4. Bottom User Paddle Collision
+                if (
+                    b.y + b.radius >= paddle.y - paddle.h / 2 &&
+                    b.y - b.radius <= paddle.y + paddle.h / 2 &&
+                    b.x >= paddle.x - paddle.w / 2 &&
+                    b.x <= paddle.x + paddle.w / 2
+                ) {
+                    audio.paddleHit();
+                    b.y = paddle.y - paddle.h / 2 - b.radius;
+
+                    // Calculate deflection angle based on hit position
+                    const hitPos = (b.x - paddle.x) / (paddle.w / 2);
+                    const maxAngle = Math.PI / 3;
+                    const newAngle = hitPos * maxAngle - Math.PI / 2;
+                    const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+
+                    b.vx = Math.sin(hitPos * maxAngle) * speed;
+                    b.vy = -Math.cos(hitPos * maxAngle) * speed;
+                }
+
+                // 5. Check Brick Collisions
+                for (let j = 0; j < bricks.length; j++) {
+                    const br = bricks[j];
+                    if (!br.alive) continue;
+
+                    // AABB Collision check
+                    if (
+                        b.x + b.radius > br.x &&
+                        b.x - b.radius < br.x + br.w &&
+                        b.y + b.radius > br.y &&
+                        b.y - b.radius < br.y + br.h
+                    ) {
+                        br.alive = false;
+                        clearedBricks++;
+                        clearedCountEl.textContent = String(clearedBricks).padStart(4, '0');
+
+                        audio.brickBreak();
+                        createSparks(br.x, br.y, br.color, 3);
+                        spawnPowerup(br.x, br.y);
+
+                        // Simple bounce response
+                        b.vy *= -1;
+                        break;
+                    }
+                }
+
+                // 6. Ball Lost Below Screen
+                if (b.y > height + 20) {
+                    balls.splice(i, 1);
+                }
+            }
+
+            ballsCountEl.textContent = String(balls.length).padStart(3, '0');
+
+            // Handle No Balls Remaining
+            if (balls.length === 0) {
+                audio.fail();
+                attempt++;
+                attemptDisplayEl.textContent = String(attempt).padStart(2, '0');
+
+                if (clearedBricks >= totalBricks) {
+                    // Level Clear
+                    msgTitle.textContent = "CORE CLEARED!";
+                    msgTitle.className = "font-mono-custom text-3xl font-black text-cyan-400 tracking-widest mb-2";
+                    msgSub.textContent = "Incredible precision! Stage 12 Destroyed.";
+                    msgActionBtn.textContent = "PLAY AGAIN";
+                    msgOverlay.classList.remove('hidden');
+                    gameState = 'GAMEOVER';
+                } else {
+                    // Reset Round
+                    resetRound();
+                }
+            }
+
+            // Update Powerup Dropping Items
+            for (let i = powerItems.length - 1; i >= 0; i--) {
+                const item = powerItems[i];
+                item.y += item.vy;
+
+                // Catch with paddle
+                if (
+                    item.y >= paddle.y - paddle.h / 2 &&
+                    item.y <= paddle.y + paddle.h / 2 &&
+                    item.x >= paddle.x - paddle.w / 2 &&
+                    item.x <= paddle.x + paddle.w / 2
+                ) {
+                    applyPowerup(item.type);
+                    powerItems.splice(i, 1);
+                    continue;
+                }
+
+                if (item.y > height) powerItems.splice(i, 1);
+            }
+
+            // Update Lasers
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                const l = lasers[i];
+                l.y += l.vy;
+
+                for (let j = 0; j < bricks.length; j++) {
+                    const br = bricks[j];
+                    if (!br.alive) continue;
+                    if (l.x > br.x && l.x < br.x + br.w && l.y > br.y && l.y < br.y + br.h) {
+                        br.alive = false;
+                        clearedBricks++;
+                        clearedCountEl.textContent = String(clearedBricks).padStart(4, '0');
+                        createSparks(br.x, br.y, br.color, 4);
+                        lasers.splice(i, 1);
+                        break;
+                    }
+                }
+                if (l.y < 0) lasers.splice(i, 1);
+            }
+
+            // Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= p.life;
+                if (p.alpha <= 0) particles.splice(i, 1);
+            }
+        }
+
+        // --- Render Loop ---
+        function render() {
+            ctx.clearRect(0, 0, width, height);
+
+            // 1. Draw Outer Circle Boundary (Wafer Enclosure Ring)
+            ctx.save();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#475569'; // Soft steel blue/cyan border
+            ctx.shadowColor = 'rgba(56, 189, 248, 0.4)';
+            ctx.shadowBlur = 10;
+
+            const startAngle = Math.PI / 2 + gateAngleGap;
+            const endAngle = Math.PI / 2 - gateAngleGap + Math.PI * 2;
+
+            ctx.beginPath();
+            ctx.arc(ringCenter.x, ringCenter.y, ringRadius, startAngle, endAngle);
+            ctx.stroke();
+            ctx.restore();
+
+            // Draw Gold Gate Posts at Bottom Opening Gap
+            const gateLeftX = ringCenter.x - Math.sin(gateAngleGap) * ringRadius;
+            const gateRightX = ringCenter.x + Math.sin(gateAngleGap) * ringRadius;
+            const gateY = ringCenter.y + Math.cos(gateAngleGap) * ringRadius;
+
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(gateLeftX - 2, gateY, 4, 12);
+            ctx.fillRect(gateRightX - 2, gateY, 4, 12);
+
+            // 2. Render Microchip/Die Bricks
+            for (let i = 0; i < bricks.length; i++) {
+                const br = bricks[i];
+                if (!br.alive) continue;
+                ctx.fillStyle = br.color;
+                ctx.fillRect(br.x, br.y, br.w, br.h);
+            }
+
+            // 3. Render Inner Shield Bar
+            ctx.fillStyle = '#334155';
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1;
+            ctx.fillRect(shieldBar.x, shieldBar.y, shieldBar.w, shieldBar.h);
+            ctx.strokeRect(shieldBar.x, shieldBar.y, shieldBar.w, shieldBar.h);
+
+            // 4. Render Powerup Falling Pills
+            powerItems.forEach(item => {
+                ctx.save();
+                ctx.fillStyle = '#f59e0b';
+                ctx.shadowColor = '#f59e0b';
+                ctx.shadowBlur = 8;
+                ctx.fillRect(item.x - 12, item.y - 6, 24, 12);
+                ctx.fillStyle = '#090d16';
+                ctx.font = '8px "JetBrains Mono"';
+                ctx.textAlign = 'center';
+                ctx.fillText(item.type.substring(0, 4), item.x, item.y + 3);
+                ctx.restore();
+            });
+
+            // 5. Render Lasers
+            ctx.fillStyle = '#ef4444';
+            lasers.forEach(l => {
+                ctx.fillRect(l.x - 1.5, l.y, 3, 10);
+            });
+
+            // 6. Render Particles / Sparks
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, 2, 2);
+                ctx.restore();
+            });
+
+            // 7. Render Balls
+            balls.forEach(b => {
+                ctx.save();
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = '#38bdf8';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Dotted line trajectory indicator if attached to paddle
+                if (b.attached && gameState === 'PLAYING') {
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(b.x, b.y);
+                    ctx.lineTo(b.x, b.y - 80);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            });
+
+            // 8. Render Bottom Paddle
+            ctx.save();
+            ctx.fillStyle = paddle.hasLaser ? '#f43f5e' : '#f97316'; // Orange-red matching screenshot
+            ctx.shadowColor = paddle.hasLaser ? '#f43f5e' : '#f97316';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.roundRect(paddle.x - paddle.w / 2, paddle.y - paddle.h / 2, paddle.w, paddle.h, 6);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // --- Main Game Loop ---
+        function loop() {
+            update();
+            render();
+            requestAnimationFrame(loop);
+        }
+
+        // --- Event Listeners UI ---
+        document.getElementById('startBtn').addEventListener('click', startNewGame);
+        document.getElementById('resumeBtn').addEventListener('click', togglePause);
+        document.getElementById('restartBtn').addEventListener('click', startNewGame);
+        msgActionBtn.addEventListener('click', startNewGame);
+
+        soundBtn.addEventListener('click', () => {
+            audio.muted = !audio.muted;
+            soundIcon.className = audio.muted ? 'fa-solid fa-volume-xmark text-rose-400' : 'fa-solid fa-volume-high text-cyan-400';
+        });
+
+        pauseBtn.addEventListener('click', togglePause);
+
+        // Window Init
+        window.onload = () => {
+            resizeCanvas();
+            initBricks();
+            requestAnimationFrame(loop);
+        };
+    </script>
+</body>
+</html>
